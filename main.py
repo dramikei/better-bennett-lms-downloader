@@ -23,6 +23,7 @@ print(welcome_message)
 USERNAME = input("Enter your LMS username: ")
 PASSWORD = getpass("Enter your LMS password: ")
 COURSES = {}
+TO_DOWN = []
 
 options = Options()
 options.headless = True
@@ -50,14 +51,13 @@ def main():
 
     # Print courses
     print_courses()
-    
-    #Iterate through courses
-        #Open courses
-        #download course contents
+
+    #Iterate through courses and download
+    iterate_courses()
     #GOTO Page 2
     #REPEAT
-    # time.sleep(2)
-    # driver.save_screenshot('screenshot.png')
+    time.sleep(2)
+    driver.save_screenshot('screenshot.png')
 
     # print(driver.page_source)
     driver.quit()
@@ -72,15 +72,45 @@ def find_courses():
                 COURSES[elem.text] = elem.get_attribute("href")
 
 def print_courses():
-    print("\n.\n.\nFound the following courses:")
-    keys = COURSES.keys()
+    print("\n.\n.\n\nFound the following courses:\n")
+    keys = list(COURSES.keys())
     index = 1
     for x in keys:
         print("{}) {}".format(index,x))
         index += 1
-    print("Whose files do you want to download? (Enter 0 - {} or A for ALL)".format(len(keys)))
-    selection = input()
+    print("\nWhose files do you want to download? \n(Enter single index, eg. 1 or a range, eg 0 - {} or A for ALL)\n".format(len(keys)))
+    selection = input("Input selection: ")
+    if selection == "A" or selection == "a":
+        TO_DOWN.extend(keys)
+    elif "-" in selection:
+        selection_split = selection.split("-")
+        starting = selection_split[0] if selection_split[0] < selection_split[1] else selection_split[1]
+        ending = selection_split[0] if selection_split[0] > selection_split[1] else selection_split[1]
+        for x in range(int(starting), int(ending)+1):
+            TO_DOWN.append(keys[x])
+    else:
+        TO_DOWN.append(keys[int(selection)-1])
+    print()
+    print()
+    print("////////////////////")
 
+def iterate_courses():
+    for key in TO_DOWN:
+        # Open Course
+        print("Opening course: {}\n".format(key))
+        driver.find_element_by_link_text(key).click()
+
+        # Download files from course
+        print("Starting download from: {}\n".format(key))
+        download()
+
+        # Go back to courses page
+        driver.back()
+
+
+def download():
+    #TODO: Implement
+    pass
 
 
 if __name__=="__main__":
