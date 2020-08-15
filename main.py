@@ -1,7 +1,10 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from getpass import getpass
+from urllib.parse import unquote
+import requests
 import time
+
 
 DRIVER_PATH="/Users/raghavvashisht/Downloads/chromedriver"
 
@@ -18,12 +21,13 @@ www.github.com/dramikei
 
 """
 print(welcome_message)
+COURSES = {}
+TO_DOWN = []
 
 
 USERNAME = input("Enter your LMS username: ")
 PASSWORD = getpass("Enter your LMS password: ")
-COURSES = {}
-TO_DOWN = []
+print("Please wait ...")
 
 options = Options()
 options.headless = True
@@ -32,6 +36,11 @@ options.add_argument('--allow-running-insecure-content')
 options.add_argument('--ignore-certificate-errors')
 
 driver = webdriver.Chrome(options=options, executable_path=DRIVER_PATH)
+
+# To Supress warnings due to not verifying SSL certificate while using requests
+requests.urllib3.disable_warnings()
+
+
 def main():
     # Open LMS
     driver.get("https://lms.bennett.edu.in/login/index.php") # TODO: Error handling
@@ -56,8 +65,8 @@ def main():
     iterate_courses()
     #GOTO Page 2
     #REPEAT
-    time.sleep(2)
-    driver.save_screenshot('screenshot.png')
+    # time.sleep(2)
+    # driver.save_screenshot('screenshot.png')
 
     # print(driver.page_source)
     driver.quit()
@@ -110,7 +119,31 @@ def iterate_courses():
 
 def download():
     #TODO: Implement
-    pass
+    div = driver.find_elements_by_class_name("activityinstance")
+    for elem in div:
+        resource = elem.find_element_by_tag_name("a")
+        if resource.get_attribute("href") is not None:
+            if "mod/resource/view.php?id=" in resource.get_attribute("href"):
+                url = resource.get_attribute("href")
+                agent = driver.execute_script("return navigator.userAgent")
+                headers = {"User-Agent":agent}
+                s = requests.session()
+                s.headers.update(headers)
+                #passing the cookies generated from the browser to the session
+                for cookie in driver.get_cookies():
+                    c = {cookie['name']: cookie['value']}
+                    s.cookies.update(c)
+                # Actually downlaod from Redirected-URL
+                r = s.get(url, allow_redirects=True, verify=False)
+
+                # Extract filename from Redirected-URL
+                file_name = unquote(r.url.split('/')[-1])
+                # file_name = file_name.replace("%20","_")
+                print("Successfully Downloaded: ",file_name)
+                with open(file_name, 'wb') as local_file:
+                    local_file.write(r.content)
+
+                    
 
 
 if __name__=="__main__":
