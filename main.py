@@ -2,6 +2,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from getpass import getpass
 from urllib.parse import unquote
+import os
 import requests
 import time
 
@@ -96,7 +97,7 @@ def print_courses():
         starting = selection_split[0] if selection_split[0] < selection_split[1] else selection_split[1]
         ending = selection_split[0] if selection_split[0] > selection_split[1] else selection_split[1]
         for x in range(int(starting), int(ending)+1):
-            TO_DOWN.append(keys[x])
+            TO_DOWN.append(keys[x-1])
     else:
         TO_DOWN.append(keys[int(selection)-1])
     print()
@@ -111,13 +112,21 @@ def iterate_courses():
 
         # Download files from course
         print("Starting download from: {}\n".format(key))
-        download()
+        download(key)
 
         # Go back to courses page
         driver.back()
 
 
-def download():
+def download(course_name):
+    
+    download_path = os.getcwd()+"/downloads"
+    if not os.path.exists(download_path):
+        os.mkdir(download_path)
+    course_path = download_path+"/{}".format(course_name)
+    if not os.path.exists(course_path):
+        os.mkdir(course_path)
+    
     # Prepare to use Requests
     agent = driver.execute_script("return navigator.userAgent")
     s = requests.session()
@@ -146,7 +155,7 @@ def download():
                 # file_name = file_name.replace("%20","_")
                 print("Downloaded: ",file_name)
                 # Save File.
-                with open(file_name, 'wb') as local_file:
+                with open(course_path+"/"+file_name, 'wb') as local_file:
                     local_file.write(r.content)
 
                     
