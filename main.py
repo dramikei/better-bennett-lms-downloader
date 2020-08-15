@@ -118,28 +118,34 @@ def iterate_courses():
 
 
 def download():
-    #TODO: Implement
+    # Prepare to use Requests
+    agent = driver.execute_script("return navigator.userAgent")
+    s = requests.session()
+
+    # Passing the header from Selenium to Requests session
+    s.headers.update({"User-Agent":agent})
+
+    # Passing the cookies generated from the browser to the session
+    for cookie in driver.get_cookies():
+        s.cookies.update({cookie['name']: cookie['value']})
+    
+    # Find files to download
     div = driver.find_elements_by_class_name("activityinstance")
     for elem in div:
         resource = elem.find_element_by_tag_name("a")
         if resource.get_attribute("href") is not None:
+            # Find file's URL
             if "mod/resource/view.php?id=" in resource.get_attribute("href"):
                 url = resource.get_attribute("href")
-                agent = driver.execute_script("return navigator.userAgent")
-                headers = {"User-Agent":agent}
-                s = requests.session()
-                s.headers.update(headers)
-                #passing the cookies generated from the browser to the session
-                for cookie in driver.get_cookies():
-                    c = {cookie['name']: cookie['value']}
-                    s.cookies.update(c)
-                # Actually downlaod from Redirected-URL
+
+                # Actually downlaod from Redirected-URL using the Requests session
                 r = s.get(url, allow_redirects=True, verify=False)
 
                 # Extract filename from Redirected-URL
                 file_name = unquote(r.url.split('/')[-1])
                 # file_name = file_name.replace("%20","_")
-                print("Successfully Downloaded: ",file_name)
+                print("Downloaded: ",file_name)
+                # Save File.
                 with open(file_name, 'wb') as local_file:
                     local_file.write(r.content)
 
