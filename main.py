@@ -41,6 +41,10 @@ driver = webdriver.Chrome(options=options, executable_path=DRIVER_PATH)
 # To Supress warnings due to not verifying SSL certificate while using requests
 requests.urllib3.disable_warnings()
 
+download_choice = -1
+iterating_past = False
+current_page = 1
+pages = 1
 
 def main():
     # Open LMS
@@ -55,30 +59,84 @@ def main():
     # TODO:
     #Click on courses
     # driver.find_element_by_xpath("//*[@id='block-myoverview-view-choices-5f3401db5889f5f3401db588dc1']/li[2]/a").click()
+    print("Do you want to download Present course, past or both?")
+    print("1: Present")
+    print("2: Past")
+    print("3: Both")
+    
+    global download_choice
+    global iterating_past
+    global current_page
+    global pages
+    
+    download_choice = int(input("Enter: "))
+    
+    if download_choice != 1 and download_choice != 2 and download_choice != 3:
+        print("Wrong choice!")
+    elif download_choice == 2:
+        gotoPast()
+        iterating_past = True
+        # time.sleep(2)
+    elif download_choice == 3:
+        pages = 2
+    
+    for _ in range(0, pages):
+        # Pages (1/2/3) in current Section (Present/Past)
+        if iterating_past:
+            html_list = driver.find_element_by_xpath("//*[@id='pb-for-past']/ul")
+        else:
+            html_list = driver.find_element_by_xpath("//*[@id='pb-for-in-progress']/ul")
+        items = html_list.find_elements_by_tag_name("li")
+        
+        # Go through every page and downlaod
+        for i in range(1,len(items) - 1):
+            COURSES.clear()
+            TO_DOWN.clear()
+            # Store Courses and href in COURSES dict
+            find_courses()
 
-    # Store Courses and href in COURSES dict
-    find_courses()
+            # # Print courses
+            print_courses()
 
-    # Print courses
-    print_courses()
+            # #Iterate through courses and download
+            iterate_courses()
+            # driver.save_screenshot(str(i)+'screenshot.png')
+            if i != len(items) - 2:
+                if iterating_past:
+                    html_list = driver.find_element_by_xpath("//*[@id='pb-for-past']/ul")
+                else:
+                    html_list = driver.find_element_by_xpath("//*[@id='pb-for-in-progress']/ul")
+                print("Going to page:",(i+1))
+                html_list.find_element_by_partial_link_text(str(i+1)).click()
+                current_page = i+1
+                time.sleep(0.5)
+    
+    # GOTO Past
+    if pages == 2:
+        gotoPast()
+        iterating_past = True
 
-    #Iterate through courses and download
-    iterate_courses()
-    #GOTO Page 2
     #REPEAT
     # time.sleep(2)
     # driver.save_screenshot('screenshot.png')
 
     # print(driver.page_source)
+
     driver.quit()
 
 def find_courses():
-    courses_div = driver.find_element_by_xpath("//*[@id='pc-for-in-progress']/div")
+    time.sleep(1)
+    global COURSES
+    main_dov = None
+    if iterating_past:
+        main_div = driver.find_element_by_xpath("//*[@id='myoverview_courses_view_past']")
+    else:
+        main_div = driver.find_element_by_xpath("//*[@id='myoverview_courses_view_in_progress']")
+    courses_div = main_div.find_element_by_xpath(".//*[@id='pc-for-in-progress']") 
     anchors = courses_div.find_elements_by_tag_name("a")
     for elem in anchors:
         if elem.get_attribute("href") is not None:
-            if "course/view.php?id=" in elem.get_attribute("href"):
-                # print(elem.get_attribute("href"))
+            if "course/view.php?id=" in elem.get_attribute("href") and elem.text != '':
                 COURSES[elem.text] = elem.get_attribute("href")
 
 def print_courses():
@@ -106,6 +164,7 @@ def print_courses():
 
 def iterate_courses():
     for key in TO_DOWN:
+        time.sleep(1)
         # Open Course
         print("Opening course: {}\n".format(key))
         driver.find_element_by_link_text(key).click()
@@ -115,15 +174,24 @@ def iterate_courses():
         download(key)
 
         # Go back to courses page
-        driver.back()
+        global iterating_past
+        if iterating_past:
+            driver.back()
+            time.sleep(0.5)
+            gotoPast()
+        time.sleep(0.5)
+        gotoPage()
 
 
 def download(course_name):
-    
+    time.sleep(1)
+    course_name = course_name.replace(":","-")
     download_path = os.getcwd()+"/downloads"
     if not os.path.exists(download_path):
         os.mkdir(download_path)
     course_path = download_path+"/{}".format(course_name)
+    print(course_path)
+    print(course_name)
     if not os.path.exists(course_path):
         os.mkdir(course_path)
     
@@ -159,7 +227,16 @@ def download(course_name):
                     local_file.write(r.content)
 
                     
-
+def gotoPast():
+    driver.find_element_by_link_text("Past").click()
+def gotoPage():
+    if current_page != 1:
+        if iterating_past:
+            html_list = driver.find_element_by_xpath("//*[@id='pb-for-past']/ul")
+        else:
+            html_list = driver.find_element_by_xpath("//*[@id='pb-for-in-progress']/ul")
+        
+        html_list.find_element_by_partial_link_text(str(current_page)).click()
 
 if __name__=="__main__":
     main()
